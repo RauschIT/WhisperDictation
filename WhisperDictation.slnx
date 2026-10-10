@@ -1,0 +1,5 @@
+<!-- Copyright (c) 2026 Rausch IT -->
+<Solution>
+  <Project Path="WhisperDictation.Core/WhisperDictation.Core.csproj" />
+  <Project Path="WhisperDictation.App/WhisperDictation.App.csproj" />
+</Solution>

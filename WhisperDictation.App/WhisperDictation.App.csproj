@@ -1,0 +1,51 @@
+<!-- Copyright (c) 2026 Rausch IT -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\WhisperDictation.Core\WhisperDictation.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app-mic.ico" />
+    <Resource Include="Assets\app-mic-recording.ico" />
+    <Reference Include="WebRtcVadSharp">
+      <HintPath>..\WhisperDictation.Core\lib\WebRtcVadSharp\WebRtcVadSharp.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <None Include="..\WhisperDictation.Core\lib\WebRtcVadSharp\WebRtcVad.dll">
+      <Link>WebRtcVad.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The model files are not part of the repository. They are copied to the build
+         output so a local build works, but deliberately NOT into a publish folder:
+         the installer downloads them (3.5 GB) and GitHub rejects release assets above 2 GB. -->
+    <None Include="..\WhisperDictation.Core\models\*.*" Condition="'$(IncludeModelsInPublish)' != 'false'">
+      <Link>models\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- .NET 8 is the lowest runtime the app needs; LatestMajor makes it use the newest
+         installed runtime (e.g. 10), so any .NET 8 or newer is enough. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>Assets\app-mic.ico</ApplicationIcon>
+    <!-- Version, Company and Product come from Directory.Build.props (VERSION file). -->
+  </PropertyGroup>
+
+</Project>

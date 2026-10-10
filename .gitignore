@@ -1,0 +1,27 @@
+# --- Build output -------------------------------------------------------------
+**/bin/
+**/obj/
+# Publish folder, Inno Setup tool and restore helper of build-installer.ps1
+build/
+# Finished setups; they are attached to GitHub releases, not committed
+Releases/
+
+# --- Model files (too large; the installer downloads them) --------------------
+WhisperDictation.Core/models/*
+!WhisperDictation.Core/models/README.md
+!WhisperDictation.Core/models/.gitignore
+
+# --- Created by the app at runtime --------------------------------------------
+config.json
+*.log
+
+# --- Local and private, not part of the repository ----------------------------
+# Working documents, design sources, helper scripts
+_private/
+.vscode/
+.mcp.json
+CLAUDE.md
+.claude/
+.vs/
+*.user
+*.suo
