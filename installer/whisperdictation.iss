@@ -21,6 +21,8 @@
 #define AppName      "WhisperDictation"
 #define AppPublisher "Rausch IT"
 #define AppExeName   "WhisperDictation.App.exe"
+; Whisper worker process started by the app; it ends when the app does.
+#define WorkerExeName "WhisperDictation.Core.exe"
 #ifndef PublishDir
   #define PublishDir "..\build\publish"
 #endif
@@ -83,7 +85,7 @@ PrivilegesRequired=lowest
 WizardStyle=modern
 MinVersion=10.0
 CloseApplications=force
-CloseApplicationsFilter={#AppExeName}
+CloseApplicationsFilter={#AppExeName},{#WorkerExeName}
 RestartApplications=no
 
 ; ===========================================================================
@@ -143,6 +145,7 @@ Filename: "{app}\{#AppExeName}"; \
 ; The app has no window to close; stop it so its files can be removed.
 ; config.json and the downloaded models live in {app} and are removed with it.
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#AppExeName} /F"; Flags: runhidden; RunOnceId: "StopApp"
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#WorkerExeName} /F"; Flags: runhidden; RunOnceId: "StopWorker"
 
 ; ===========================================================================
 [UninstallDelete]

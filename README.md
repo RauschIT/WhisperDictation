@@ -39,6 +39,8 @@ dictate.
   validates the finished segment and discards false positives
 - Transcribes each segment with Whisper — `large-v3` for best quality or `small`
   for speed — on the GPU or on the CPU, both selectable in the window
+- Switches model and GPU/CPU at runtime. Whisper runs in its own worker process,
+  so a switch from GPU to CPU frees the graphics memory right away
 - Runs on the GPU through **Vulkan**, so it is not tied to one vendor: NVIDIA, AMD
   and Intel graphics cards are supported alike, without CUDA or ROCm
 - Types the recognized words into the focused window using `SendInput` with
@@ -55,7 +57,7 @@ dictate.
   cannot — reach the internet with audio data
 - Developers who want a readable example of a local Whisper pipeline in C#:
   audio capture, VAD, Whisper.net on Vulkan and text injection, in about
-  2,500 lines of code
+  3,000 lines of code
 
 It is **not** meant to be deployed across a company. It is a single-user desktop
 tool and a showcase.
@@ -76,6 +78,7 @@ Platform target is **x64**. There is no AnyCPU or x86 build.
 
 Download `WhisperDictation-<version>-setup.exe` from the
 [Releases](https://github.com/RauschIT/WhisperDictation/releases) page and run it.
+What changed in each version is listed in [CHANGELOG.md](CHANGELOG.md).
 
 - **No administrator rights.** The application is installed for the current user
   only, into `%LOCALAPPDATA%\Programs\WhisperDictation`. Only if no .NET Desktop
@@ -166,6 +169,16 @@ installed. Output: `Releases/<version>/WhisperDictation-<version>-setup.exe`.
 The version comes from the `VERSION` file in the repository root, the only place
 it is stored.
 
+### Publish a release
+
+1. Raise the version in `VERSION` and add its entry to [CHANGELOG.md](CHANGELOG.md).
+2. Commit, then build the installer from that commit. The build writes the commit
+   hash into the version information, so build after the last commit.
+3. Tag the commit `v<version>` and push the branch and the tag.
+4. Create the GitHub release from the tag and attach
+   `WhisperDictation-<version>-setup.exe`. The release notes are the changelog
+   entry plus installation notes and the SHA-256 the build script prints.
+
 ### Known issue with the solution file
 
 `WhisperDictation.slnx` currently does **not** build:
@@ -210,6 +223,16 @@ Model and compute are the two selections at the top:
 Switching loads the new model within a few seconds. The previous model keeps
 working until then, also while you dictate. If loading fails, the previous model
 stays active.
+
+Whisper runs in its own worker process (`WhisperDictation.Core.exe`). A switch
+starts a new worker and then ends the previous one, so its memory is released
+completely — after a switch from GPU to CPU no graphics memory stays allocated.
+Freeing the model inside one process is not enough for that: the Vulkan backend
+of ggml keeps its GPU device until the process exits.
+
+In Task Manager the worker appears as `WhisperDictation.Core.exe` next to
+`WhisperDictation.App.exe`; the model's RAM and graphics memory are counted
+there. The worker ends by itself when the app exits.
 
 ### Hotkeys
 
@@ -303,14 +326,17 @@ WhisperDictation.App (WPF)
        │    ├→ NAudioCapture (16 kHz / 16 bit / mono)
        │    ├→ WebRtcVadService       (real-time start/stop of a segment)
        │    └→ SileroVadOnnxModel     (validates the finished segment)
-       ├→ WhisperService              (Vulkan GPU or CPU, switchable at runtime)
+       ├→ WhisperWorkerClient         (named pipe to the worker process, replaced on a switch)
+       │    └→ WhisperDictation.Core.exe --whisper-worker
+       │         └→ WhisperService    (Vulkan GPU or CPU)
        ├→ WordOutputBuffer            (thread-safe FIFO)
        └→ TextOutputService           (SendInput, Unicode)
 ```
 
 Configuration flows from the UI to `ConfigManager` and on to
 `DictationManager.ApplyConfig()`; a model or compute change goes through
-`DictationManager.ReloadWhisperAsync()`.
+`DictationManager.ReloadWhisperAsync()`, which starts a new worker process and
+ends the previous one.
 
 **Segments instead of streaming.** Text is typed after each pause in speech, one
 segment at a time, not word by word while you speak. This is a deliberate choice:
@@ -319,15 +345,17 @@ streaming was implemented and tried, but did not prove practical in daily use.
 still reads naturally.
 
 `WhisperDictation.Core` is a plain library and console application (`net8.0`);
-`WhisperDictation.App` is the WPF front end (`net8.0-windows`).
+its executable also hosts the Whisper worker process. `WhisperDictation.App` is
+the WPF front end (`net8.0-windows`).
 
 ## Project layout
 
 ```
 VERSION                         version number, the single source for all projects and the installer
+CHANGELOG.md                    changes per version, the basis for the release notes
 WhisperDictation.slnx           solution file (see known issue above)
 WhisperDictation.Core/          core library, net8.0
-  Services/                     VAD, audio capture, Whisper, text output
+  Services/                     VAD, audio capture, Whisper and its worker process, text output
   lib/WebRtcVadSharp/           local WebRTC VAD DLLs, not from NuGet
   models/                       model files go here (not in the repository)
 WhisperDictation.App/           WPF application, net8.0-windows

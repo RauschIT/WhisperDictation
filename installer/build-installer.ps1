@@ -130,10 +130,13 @@ if ($LASTEXITCODE -ne 0) {
 
 $InstallerFile = Get-ChildItem $OutputDir -Filter "WhisperDictation-$Version-setup.exe" |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# For the "Checksum" section of the release notes.
+$InstallerHash = (Get-FileHash $InstallerFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 
 Write-Host ""
 Write-Host "Build complete!" -ForegroundColor Green
 Write-Host "  Installer: $($InstallerFile.FullName)" -ForegroundColor Green
 Write-Host "  Size:      $([math]::Round($InstallerFile.Length / 1MB, 1)) MB" -ForegroundColor Green
+Write-Host "  SHA-256:   $InstallerHash" -ForegroundColor Green
 Write-Host ""
 Write-Host "Note: the installer downloads the model files (3.5 GB) during setup." -ForegroundColor DarkGray

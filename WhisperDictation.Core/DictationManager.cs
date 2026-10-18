@@ -17,7 +17,7 @@ namespace WhisperDictation.Core
         private readonly ConfigManager _configManager;
         private readonly string _modelDir;
 
-        private WhisperService? _whisper;
+        private WhisperWorkerClient? _whisper;
         private SpeechSegmentDetector? _detector;
         private HotkeyService? _hotkey;
         private TextOutputService? _output;
@@ -131,20 +131,20 @@ namespace WhisperDictation.Core
             throw new FileNotFoundException($"No Whisper model (ggml-*.bin) found in {_modelDir}");
         }
 
-        private WhisperService LoadWhisper(string model, bool useGpu)
+        private WhisperWorkerClient LoadWhisper(string model, bool useGpu)
         {
             var cfg = _configManager.Config;
             string path = Path.Combine(_modelDir, model);
             _log.LogInformation("Loading Whisper from {Path} on {Device}", path, useGpu ? "GPU" : "CPU");
 
-            var whisper = new WhisperService();
+            var whisper = new WhisperWorkerClient();
             whisper.Initialize(path, cfg.Language, useGpu);
             if (!string.IsNullOrEmpty(cfg.Hotwords))
                 whisper.SetHotwords(cfg.Hotwords);
 
             _currentModel = model;
             _currentUseGpu = useGpu;
-            _log.LogInformation("Whisper loaded");
+            _log.LogInformation("Whisper loaded (worker process {Pid})", whisper.ProcessId);
             return whisper;
         }
 
@@ -167,7 +167,13 @@ namespace WhisperDictation.Core
                 // LoadWhisper only updates CurrentModel/CurrentUseGpu once loading succeeded.
                 var loaded = LoadWhisper(cfg.WhisperModel, cfg.UseGpu);
                 var old = Interlocked.Exchange(ref _whisper, loaded);
-                old?.Dispose();
+                if (old != null)
+                {
+                    // Ending the old worker process frees its model, RAM and GPU memory completely.
+                    int oldPid = old.ProcessId;
+                    old.Dispose();
+                    _log.LogInformation("Whisper worker process {Pid} stopped", oldPid);
+                }
                 OnStatusChanged?.Invoke(_active ? "AKTIV" : $"Ready. {GetHotkeyLabel(_currentHotkeyMode)} to dictate.");
             });
         }

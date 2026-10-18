@@ -160,6 +160,13 @@ class Program
 
     static async Task Main(string[] args)
     {
+        // Whisper worker process of the app, started by WhisperWorkerClient
+        if (args.Length > 1 && args[0] == WhisperWorker.Argument)
+        {
+            await WhisperWorker.RunAsync(args[1]);
+            return;
+        }
+
         // Live-Modus
         if (args.Length > 0 && args[0] == "--live")
         {
