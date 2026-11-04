@@ -20,7 +20,6 @@ config.json
 _private/
 .vscode/
 .mcp.json
-CLAUDE.md
 .claude/
 .vs/
 *.user
