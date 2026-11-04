@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private ConfigManager? _configManager;
     private AppLoggerProvider? _logProvider;
     private bool _loadingConfig;
+    private bool _hotwordsLoaded;
     private WinForms.NotifyIcon? _notifyIcon;
     private System.Drawing.Icon? _iconIdle;
     private System.Drawing.Icon? _iconRecording;
@@ -117,6 +118,7 @@ public partial class MainWindow : Window
         MinSpeechSlider.Value = cfg.MinSpeechMs;
         WordDelaySlider.Value = cfg.WordDelayMs;
         HotwordsText.Text = cfg.Hotwords;
+        _hotwordsLoaded = true;
         string[] vadLabels = { "Low", "Mid", "Hi", "Max" };
         VadModeValue.Text = vadLabels[Math.Clamp(cfg.VadMode, 0, 3)];
         MinSilenceValue.Text = $"{cfg.MinSilenceMs}";
@@ -335,9 +337,11 @@ public partial class MainWindow : Window
     // LostFocus alone is not enough: closing (hiding) the window or switching to another
     // application does not move the focus out of the text box, so the text would be lost
     // and overwritten by LoadConfigToUi the next time the window opens.
+    // The app starts hidden and the text box stays empty until LoadConfigToUi has filled it;
+    // saving before that (e.g. Quit from the tray without opening the window) would erase the hotwords.
     private void SaveHotwords()
     {
-        if (_configManager == null || HotwordsText.Text == _configManager.Config.Hotwords) return;
+        if (!_hotwordsLoaded || _configManager == null || HotwordsText.Text == _configManager.Config.Hotwords) return;
         _configManager.Update(cfg => cfg.Hotwords = HotwordsText.Text);
         _manager?.ApplyConfig();
     }

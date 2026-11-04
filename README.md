@@ -271,7 +271,10 @@ window. Closing the window hides it; the app keeps running in the tray. Use
 ## Configuration
 
 Settings live in `config.json`, next to the executable. The window writes them on
-every change; a missing file is created with defaults.
+every change; a missing file is created with defaults. Hotwords are saved when the
+text box loses focus, the window loses activation or closes, and only after the window
+has loaded the saved text: quitting from the tray without opening the window leaves
+them untouched.
 
 | Setting | Default | Meaning |
 |---|---|---|

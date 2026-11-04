@@ -4,6 +4,15 @@ Notable changes per version. The version number comes from the `VERSION` file.
 Every version has a [GitHub release](https://github.com/RauschIT/WhisperDictation/releases)
 with the installer; its release notes are based on the entry here.
 
+## 1.1.2 — 2026-11-04
+
+### Fixed
+
+- Quitting from the tray without having opened the window no longer erases the
+  hotwords. The app starts hidden with an empty text box, and closing it saved that
+  empty text over the hotwords in `config.json`. Hotwords that are already lost are
+  not restored by the update; enter them again in the window.
+
 ## 1.1.1 — 2026-10-18
 
 ### Fixed
