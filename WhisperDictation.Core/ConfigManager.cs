@@ -15,11 +15,33 @@ namespace WhisperDictation.Core
 
         public DictationConfig Config => _config;
 
-        public ConfigManager(string configPath, ILogger? logger = null)
+        /// <summary>Default location: %APPDATA%\WhisperDictation\config.json (user directory, survives reinstalls).</summary>
+        public static string DefaultPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WhisperDictation", "config.json");
+
+        /// <param name="legacyPath">Old config next to the exe; copied once if the new file does not exist yet.</param>
+        public ConfigManager(string configPath, ILogger? logger = null, string? legacyPath = null)
         {
             _configPath = configPath;
             _log = logger;
+            Migrate(legacyPath);
             _config = Load();
+        }
+
+        private void Migrate(string? legacyPath)
+        {
+            try
+            {
+                if (legacyPath == null || File.Exists(_configPath) || !File.Exists(legacyPath))
+                    return;
+                Directory.CreateDirectory(Path.GetDirectoryName(_configPath)!);
+                File.Copy(legacyPath, _configPath);
+                _log?.LogInformation("Config migrated from {Old} to {New}", legacyPath, _configPath);
+            }
+            catch (Exception ex)
+            {
+                _log?.LogWarning(ex, "Migrating the old config failed");
+            }
         }
 
         private DictationConfig Load()
@@ -50,6 +72,7 @@ namespace WhisperDictation.Core
             try
             {
                 string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory(Path.GetDirectoryName(_configPath)!);
                 File.WriteAllText(_configPath, json);
             }
             catch (Exception ex)

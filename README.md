@@ -47,7 +47,9 @@ dictate.
   Unicode keyboard events, so it works with any application, not just a chat box
 - Filters typical Whisper silence hallucinations ("Vielen Dank", "Untertitel von
   Stephanie Gündel", …) and asterisk stage directions
-- Remembers its settings in `config.json` next to the executable
+- Three system-wide hotkeys to choose from: `Ctrl`+`Space`, double-tap `Ctrl`, or
+  hold `Ctrl` for push-to-talk
+- Remembers its settings in `%APPDATA%\WhisperDictation\config.json` (survives updates and reinstalls)
 - Lives in the system tray: blue icon = idle, green icon = recording
 
 ## Who it is for
@@ -57,7 +59,7 @@ dictate.
   cannot — reach the internet with audio data
 - Developers who want a readable example of a local Whisper pipeline in C#:
   audio capture, VAD, Whisper.net on Vulkan and text injection, in about
-  3,000 lines of code
+  3,500 lines of code
 
 It is **not** meant to be deployed across a company. It is a single-user desktop
 tool and a showcase.
@@ -92,7 +94,7 @@ What changed in each version is listed in [CHANGELOG.md](CHANGELOG.md).
 - **Options:** start with Windows (on by default) and a desktop icon (off by default).
 
 Uninstall through *Settings → Apps*. This removes the application and the
-downloaded models; `config.json` and the log file stay in the installation folder.
+downloaded models and the log file; the settings in `%APPDATA%\WhisperDictation\config.json` stay.
 
 ## Download the models
 
@@ -204,8 +206,9 @@ call the project files directly. Tested with .NET SDK 10.0.103, MSBuild 18.0.11.
 3. The status shows `Ready. CTRL+SPACE to dictate.` once the model is loaded.
    Loading `large-v3` takes about 2.5 seconds.
 4. Click into the window where the text should go.
-5. Press the hotkey to start recording, speak, press it again to stop. The
-   transcript is typed into the focused window.
+5. Press the hotkey to start recording, speak, press it again to stop (with
+   push-to-talk: hold `Ctrl` while speaking, release to stop). The transcript is
+   typed into the focused window.
 
 ### Model and compute
 
@@ -240,10 +243,21 @@ there. The worker ends by itself when the app exits.
 |---|---|---|
 | `Ctrl` + `Space` | `CtrlSpace` | Default. Registered system-wide via `RegisterHotKey` |
 | Double-tap `Ctrl` | `CtrlDoubleTap` | Press `Ctrl` twice within 350 ms |
+| Hold `Ctrl` (push-to-talk) | `CtrlHold` | Hold `Ctrl` alone for 300 ms to dictate, release to stop; Ctrl shortcuts (another key or mouse button pressed) do not trigger |
 
 The hotkey is registered system-wide, so it works while any application is in
 focus. `Ctrl`+`Space` is also used by some editors for autocomplete; if it
 collides with your workflow, switch to double-tap `Ctrl`.
+
+**Push-to-talk records differently.** While `CtrlHold` is selected, the microphone
+stays open and fills a 3-second ring buffer in memory that is overwritten
+continuously and never saved; Windows shows the microphone as in use the whole
+time. When push-to-talk starts, the clip begins 1.3 s back in that buffer (1 s
+before `Ctrl` went down plus the 300 ms hold), so words spoken while pressing the
+key are kept. Everything until the release is recorded without pause detection
+and sent to Whisper in one piece; Silero only checks that the clip contains speech
+at all. The other two hotkeys open the microphone only while recording and split
+the speech at pauses.
 
 ### Output into any window
 
@@ -270,7 +284,7 @@ window. Closing the window hides it; the app keeps running in the tray. Use
 
 ## Configuration
 
-Settings live in `config.json`, next to the executable. The window writes them on
+Settings live in `%APPDATA%\WhisperDictation\config.json`. An old `config.json` next to the executable is copied there once on first start. The window writes them on
 every change; a missing file is created with defaults. Hotwords are saved when the
 text box loses focus, the window loses activation or closes, and only after the window
 has loaded the saved text: quitting from the tray without opening the window leaves
@@ -283,7 +297,7 @@ them untouched.
 | `MinSpeechMs` | `700` | Minimum speech length for a segment to be accepted |
 | `StartSpeechFrames` | `24` | Speech frames required before recording starts |
 | `WordDelayMs` | `60` | Delay between typed words |
-| `HotkeyMode` | `CtrlSpace` | `CtrlSpace` or `CtrlDoubleTap` |
+| `HotkeyMode` | `CtrlSpace` | `CtrlSpace`, `CtrlDoubleTap` or `CtrlHold` |
 | `Hotwords` | *(empty)* | Prompt text to bias recognition toward names and technical terms |
 | `WhisperModel` | `ggml-large-v3.bin` | Model file in `models/`; selectable in the window. If it is missing, another model found in `models/` is used |
 | `UseGpu` | `true` | `true` = GPU (Vulkan), `false` = CPU; selectable in the window |
@@ -325,10 +339,13 @@ Additional rough edge: `Hotwords` work less reliably than in the Python prototyp
 ```
 WhisperDictation.App (WPF)
   └→ DictationManager
-       ├→ SpeechSegmentDetector
+       ├→ SpeechSegmentDetector       (Ctrl+Space, double-tap Ctrl)
        │    ├→ NAudioCapture (16 kHz / 16 bit / mono)
        │    ├→ WebRtcVadService       (real-time start/stop of a segment)
        │    └→ SileroVadOnnxModel     (validates the finished segment)
+       ├→ PushToTalkRecorder          (hold Ctrl: ring buffer, one clip per hold)
+       │    ├→ NAudioCapture
+       │    └→ SileroVadOnnxModel     (checks the clip contains speech)
        ├→ WhisperWorkerClient         (named pipe to the worker process, replaced on a switch)
        │    └→ WhisperDictation.Core.exe --whisper-worker
        │         └→ WhisperService    (Vulkan GPU or CPU)
@@ -342,7 +359,8 @@ Configuration flows from the UI to `ConfigManager` and on to
 ends the previous one.
 
 **Segments instead of streaming.** Text is typed after each pause in speech, one
-segment at a time, not word by word while you speak. This is a deliberate choice:
+segment at a time, not word by word while you speak (with push-to-talk: once,
+after the release). This is a deliberate choice:
 streaming was implemented and tried, but did not prove practical in daily use.
 `WordOutputBuffer` types the words of a segment one after another, so the output
 still reads naturally.

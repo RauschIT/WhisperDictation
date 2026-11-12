@@ -56,6 +56,7 @@
                               SelectionChanged="OnHotkeyModeChanged">
                         <ComboBoxItem Tag="CtrlSpace" Content="Ctrl + Space"/>
                         <ComboBoxItem Tag="CtrlDoubleTap" Content="Double-Tap Ctrl"/>
+                        <ComboBoxItem Tag="CtrlHold" Content="Hold Ctrl (push-to-talk)"/>
                     </ComboBox>
                 </Grid>
 

@@ -68,7 +68,9 @@ public partial class MainWindow : Window
         var hotkeyCombo = this.FindName("HotkeyModeCombo") as System.Windows.Controls.ComboBox;
         string hotkeyMode = string.Equals(cfg.HotkeyMode, "CtrlDoubleTap", StringComparison.OrdinalIgnoreCase)
             ? "CtrlDoubleTap"
-            : "CtrlSpace";
+            : string.Equals(cfg.HotkeyMode, "CtrlHold", StringComparison.OrdinalIgnoreCase)
+                ? "CtrlHold"
+                : "CtrlSpace";
 
         if (hotkeyCombo != null)
         {
@@ -255,8 +257,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
-            _configManager = new ConfigManager(configPath, logger);
+            string legacyConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+            _configManager = new ConfigManager(ConfigManager.DefaultPath, logger, legacyConfigPath);
 
             _manager = new DictationManager(modelDir, _configManager, logger);
             _manager.OnStatusChanged += status => SetStatus(status);
@@ -355,9 +357,10 @@ public partial class MainWindow : Window
         string mode = "CtrlSpace";
         if (hotkeyCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item &&
             item.Tag is string tag &&
-            string.Equals(tag, "CtrlDoubleTap", StringComparison.OrdinalIgnoreCase))
+            (string.Equals(tag, "CtrlDoubleTap", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(tag, "CtrlHold", StringComparison.OrdinalIgnoreCase)))
         {
-            mode = "CtrlDoubleTap";
+            mode = tag;
         }
 
         _configManager.Update(cfg => cfg.HotkeyMode = mode);

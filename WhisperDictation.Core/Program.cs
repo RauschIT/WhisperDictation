@@ -174,12 +174,14 @@ class Program
             string configPath = Path.Combine(modelDir, "..", "config.json");
             var logFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddConsole());
             var logger = logFactory.CreateLogger("Console");
-            var configManager = new WhisperDictation.Core.ConfigManager(configPath, logger);
+            var configManager = new WhisperDictation.Core.ConfigManager(WhisperDictation.Core.ConfigManager.DefaultPath, logger, configPath);
             using var manager = new WhisperDictation.Core.DictationManager(modelDir, configManager, logger);
             manager.Initialize();
             string hotkeyLabel = string.Equals(configManager.Config.HotkeyMode, "CtrlDoubleTap", StringComparison.OrdinalIgnoreCase)
                 ? "Double-Tap CTRL"
-                : "CTRL+SPACE";
+                : string.Equals(configManager.Config.HotkeyMode, "CtrlHold", StringComparison.OrdinalIgnoreCase)
+                    ? "Hold CTRL"
+                    : "CTRL+SPACE";
             Console.WriteLine($"Ready. {hotkeyLabel} to dictate.");
             while (true) System.Threading.Thread.Sleep(100);
         }

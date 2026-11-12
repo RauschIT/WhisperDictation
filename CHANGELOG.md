@@ -4,6 +4,24 @@ Notable changes per version. The version number comes from the `VERSION` file.
 Every version has a [GitHub release](https://github.com/RauschIT/WhisperDictation/releases)
 with the installer; its release notes are based on the entry here.
 
+## 1.2.0 — 2026-11-12
+
+### Added
+
+- New hotkey "Hold Ctrl (push-to-talk)": hold `Ctrl` alone for 300 ms to start
+  dictating, release it to stop. `Ctrl` shortcuts such as `Ctrl`+`C` do not trigger
+  it, because pressing another key or mouse button cancels the start. In this mode
+  the microphone stays open and fills a short ring buffer in memory, so the clip
+  starts 1 s before the key went down and the first words are not lost; the whole
+  clip is transcribed in one piece after the release.
+
+### Changed
+
+- Settings are now stored in the user profile, `%APPDATA%\WhisperDictation\config.json`,
+  instead of next to the executable, so updates and reinstalls no longer touch them.
+  On first start an existing `config.json` from the installation folder is copied
+  there once.
+
 ## 1.1.2 — 2026-11-04
 
 ### Fixed

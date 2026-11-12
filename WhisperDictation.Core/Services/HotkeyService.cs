@@ -16,6 +16,8 @@ namespace WhisperDictation.Core.Services
         private const uint VK_CONTROL = 0x11;
         private const int CTRL_POLL_INTERVAL_MS = 15;
         private const long DOUBLE_TAP_WINDOW_MS = 350;
+        /// <summary>How long Ctrl must be held alone before push-to-talk starts.</summary>
+        public const int HOLD_START_MS = 300;
 
         [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint mod, uint vk);
         [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
@@ -28,6 +30,8 @@ namespace WhisperDictation.Core.Services
         struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam; public IntPtr lParam; public uint time; public int ptX; public int ptY; }
 
         public event Action? OnToggle;
+        public event Action? OnHoldStart;
+        public event Action? OnHoldEnd;
 
         private Thread? _thread;
         private volatile bool _running;
@@ -50,6 +54,8 @@ namespace WhisperDictation.Core.Services
         {
             if (string.Equals(mode, "CtrlDoubleTap", StringComparison.OrdinalIgnoreCase))
                 return "CtrlDoubleTap";
+            if (string.Equals(mode, "CtrlHold", StringComparison.OrdinalIgnoreCase))
+                return "CtrlHold";
             return "CtrlSpace";
         }
 
@@ -59,10 +65,71 @@ namespace WhisperDictation.Core.Services
 
             if (_mode == "CtrlDoubleTap")
                 RunCtrlDoubleTapLoop();
+            else if (_mode == "CtrlHold")
+                RunCtrlHoldLoop();
             else
                 RunCtrlSpaceLoop();
 
             _threadId = 0;
+        }
+
+        private static bool IsKeyDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
+
+        /// <summary>True if any key or mouse button other than Ctrl/Shift/Alt is down.</summary>
+        private static bool OtherKeyDown()
+        {
+            for (int vk = 0x01; vk <= 0xFE; vk++)
+            {
+                if (vk == 0x10 || vk == 0x11 || vk == 0x12 || (vk >= 0xA0 && vk <= 0xA5))
+                    continue;
+                if (IsKeyDown(vk))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Push-to-talk: Ctrl held alone for HOLD_START_MS starts, releasing it stops.
+        /// Ctrl used in a shortcut (another key or mouse button pressed) does not trigger.
+        /// </summary>
+        private void RunCtrlHoldLoop()
+        {
+            long downSince = 0;
+            bool talking = false;
+            bool aborted = false;
+
+            while (_running)
+            {
+                bool isDown = IsKeyDown((int)VK_CONTROL);
+
+                if (!isDown)
+                {
+                    if (talking)
+                        OnHoldEnd?.Invoke();
+                    talking = false;
+                    aborted = false;
+                    downSince = 0;
+                }
+                else if (!talking && !aborted)
+                {
+                    long now = Environment.TickCount64;
+                    if (downSince == 0)
+                        downSince = now;
+
+                    if (OtherKeyDown())
+                        aborted = true;
+                    else if (now - downSince >= HOLD_START_MS)
+                    {
+                        talking = true;
+                        OnHoldStart?.Invoke();
+                    }
+                }
+
+                Thread.Sleep(CTRL_POLL_INTERVAL_MS);
+            }
+
+            if (talking)
+                OnHoldEnd?.Invoke();
         }
 
         private void RunCtrlSpaceLoop()

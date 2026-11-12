@@ -143,7 +143,7 @@ Filename: "{app}\{#AppExeName}"; \
 ; ===========================================================================
 [UninstallRun]
 ; The app has no window to close; stop it so its files can be removed.
-; config.json and the downloaded models live in {app} and are removed with it.
+; The downloaded models live in {app} and are removed with it; config.json lives in %APPDATA%\WhisperDictation and stays.
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#AppExeName} /F"; Flags: runhidden; RunOnceId: "StopApp"
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#WorkerExeName} /F"; Flags: runhidden; RunOnceId: "StopWorker"
 
